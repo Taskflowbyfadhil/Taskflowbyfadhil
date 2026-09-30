@@ -4,7 +4,7 @@ import React from 'react';
 
 export default function Header() {
   return (
-    <header className="w-full sticky top-0 z-40 bg-[#f9f9fb]/80 backdrop-blur-md flex items-center justify-between px-5 md:px-8 py-3.5 border-b border-slate-200/60">
+    <header className="w-full sticky top-0 z-40 bg-[#f9f9fb]/80 backdrop-blur-md flex items-center justify-between px-5 md:px-8 pb-3.5 pt-[calc(env(safe-area-inset-top)+14px)] border-b border-slate-200/60">
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-[#006c4b] text-white flex items-center justify-center font-bold text-base shadow-sm">
           TF
