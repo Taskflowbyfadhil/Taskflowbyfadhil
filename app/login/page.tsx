@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { signIn } from 'next-auth/react';
+import { createClient } from '@/utils/supabase/client';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -11,7 +11,9 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+  const supabase = createClient();
+
+  const handleEmailLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
@@ -21,26 +23,40 @@ export default function LoginPage() {
     const password = formData.get('password') as string;
 
     try {
-      // Jika menggunakan NextAuth Credentials Provider:
-      const res = await signIn('credentials', {
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password,
-        redirect: false,
       });
 
-      if (res?.error) {
-        setError('Email atau password salah.');
+      if (error) {
+        setError(error.message);
         setIsLoading(false);
       } else {
-        // Login berhasil, arahkan pengguna ke Dashboard
         router.push('/dashboard');
       }
-    } catch (err) {
-      // Fallback jika belum menyambungkan NextAuth credentials (simulasi)
-      setTimeout(() => {
+    } catch (err: any) {
+      setError(err.message || 'Terjadi kesalahan saat login.');
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setIsLoading(true);
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        setError(error.message);
         setIsLoading(false);
-        router.push('/dashboard');
-      }, 1000);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Gagal terhubung dengan Google OAuth.');
+      setIsLoading(false);
     }
   };
 
@@ -101,8 +117,8 @@ export default function LoginPage() {
           </div>
         )}
 
-        {/* Form Login */}
-        <form onSubmit={handleSubmit} className="space-y-4" id="login-form">
+        {/* Form Login Email & Password */}
+        <form onSubmit={handleEmailLogin} className="space-y-4" id="login-form">
           <div className="space-y-1">
             <label
               className="block text-[13px] leading-[18px] font-semibold text-[#3c4a42] ml-1"
@@ -120,7 +136,7 @@ export default function LoginPage() {
                 name="email"
                 placeholder="name@example.com"
                 required
-                type="text"
+                type="email"
               />
             </div>
           </div>
@@ -198,12 +214,13 @@ export default function LoginPage() {
           </div>
         </div>
 
-        {/* Social Login terhubung NextAuth */}
-        <div className="mt-6 grid grid-cols-2 gap-4">
+        {/* Social Login Supabase Google OAuth */}
+        <div className="mt-6">
           <button
             className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-[#bbcac0] rounded-full bg-white text-[13px] font-semibold text-[#1a1c1d] hover:bg-[#f3f3f5] focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-[0.98] transition-all duration-200 h-[44px]"
             type="button"
-            onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+            onClick={handleGoogleLogin}
+            disabled={isLoading}
           >
             <svg className="h-5 w-5" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
               <path
@@ -223,21 +240,7 @@ export default function LoginPage() {
                 fill="#EA4335"
               ></path>
             </svg>
-            Google
-          </button>
-          <button
-            className="w-full flex items-center justify-center gap-2 py-2 px-4 border border-[#bbcac0] rounded-full bg-white text-[13px] font-semibold text-[#1a1c1d] hover:bg-[#f3f3f5] focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-[0.98] transition-all duration-200 h-[44px]"
-            type="button"
-            onClick={() => signIn('apple', { callbackUrl: '/dashboard' })}
-          >
-            <svg
-              className="h-5 w-5 fill-current text-[#1a1c1d]"
-              viewBox="0 0 24 24"
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M16.365 14.908c-.021-3.125 2.544-4.636 2.658-4.708-1.455-2.128-3.712-2.42-4.526-2.455-1.93-.197-3.774 1.144-4.75 1.144-.98 0-2.52-1.11-4.108-1.08-2.062.03-3.96 1.2-5.02 3.056-2.146 3.738-.55 9.256 1.545 12.28 1.026 1.48 2.235 3.125 3.824 3.064 1.523-.06 2.106-.99 3.94-.99 1.83 0 2.35.99 3.94.96 1.636-.03 2.673-1.48 3.684-2.96 1.163-1.7 1.64-3.34 1.66-3.428-.035-.015-3.193-1.226-3.21-4.883H16.365zM14.07 4.298c.84-1.018 1.408-2.43 1.254-3.837-1.196.048-2.67.795-3.538 1.838-.7.838-1.378 2.28-1.2 3.655 1.34.104 2.655-.65 3.484-1.656z"></path>
-            </svg>
-            Apple
+            Continue with Google
           </button>
         </div>
 
