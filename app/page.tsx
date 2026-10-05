@@ -36,7 +36,7 @@ export default function LandingPage() {
         </div>
         
         <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-slate-900 leading-tight mb-6">
-          Selesaikan Proyek Lebih Cepat dengan <span className="text-emerald-600">TaskFlow</span>
+          Manage Proyek lebih cepat dan tepat bersama <span className="text-emerald-600">TaskFlow</span>
         </h1>
         
         <p className="text-base md:text-lg text-slate-600 max-w-2xl mb-10">
