@@ -34,7 +34,6 @@ export default function RegisterPage() {
             full_name: fullName,
             username: username,
           },
-          redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
 
