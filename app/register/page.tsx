@@ -25,17 +25,16 @@ export default function RegisterPage() {
     const email = formData.get('email') as string;
     const password = formData.get('password') as string;
 
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            full_name: fullName,
-            username: username,
-          },
-        },
-      });
+    const { data, error } = await supabase.auth.signUp({
+  email: emailInput,
+  password: passwordInput,
+  options: {
+    data: {
+      full_name: fullNameInput, // Sesuai dengan input form Full Name
+      username: usernameInput,   // Sesuai dengan input form Username
+    },
+  },
+})
 
       if (error) {
         setError(error.message);
