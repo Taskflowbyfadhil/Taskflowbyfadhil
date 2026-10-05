@@ -33,6 +33,28 @@ export async function GET(request: Request) {
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     
     if (!error) {
+      // 1. Ambil data user yang sedang login dari sesi Supabase
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (user?.email) {
+        // 2. Cek apakah email sudah terdaftar di tabel database aplikasi Anda (contoh: tabel 'users')
+        const { data: existingUser, error: dbError } = await supabase
+          .from('users') // Sesuaikan dengan nama tabel user Anda di Supabase
+          .select('email')
+          .eq('email', user.email)
+          .single()
+
+        // 3. Jika user belum terdaftar di database
+        if (dbError || !existingUser) {
+          // Hapus sesi / sign out agar user tidak nyangkut dalam kondisi login
+          await supabase.auth.signOut()
+          
+          // Redirect ke halaman login/splash screen dengan pesan error
+          return NextResponse.redirect(`${origin}/login?error=email-not-registered`)
+        }
+      }
+
+      // 4. Jika terdaftar, lanjutkan proses redirect normal ke dashboard
       const forwardedHost = request.headers.get('x-forwarded-host')
       const isLocalEnv = process.env.NODE_ENV === 'development'
       
