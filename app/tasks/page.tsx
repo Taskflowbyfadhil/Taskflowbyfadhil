@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
+import { createClient } from '@/utils/supabase/client';
 
 export interface Task {
   id: string;
@@ -16,47 +17,14 @@ export interface Task {
   dueDate: string;
   description?: string;
   assignees?: string[];
+  user_id?: string;
 }
-
-const INITIAL_TASKS: Task[] = [
-  {
-    id: '1',
-    title: 'Redesign Mobile App UI',
-    category: 'delivery-app',
-    color: '#00B37E',
-    status: 'in-progress',
-    priority: 'high',
-    dueDate: '2026-09-21',
-    description: 'Perbarui tata letak halaman utama',
-    assignees: ['Alex', 'Sarah'],
-  },
-  {
-    id: '2',
-    title: 'Integrasi Payment Gateway',
-    category: 'marketing',
-    color: '#6C5CE7',
-    status: 'todo',
-    priority: 'medium',
-    dueDate: '2026-09-25',
-    description: 'Pasang Midtrans di checkout',
-    assignees: ['Budi'],
-  },
-  {
-    id: '3',
-    title: 'Fix Dynamic Route Errors',
-    category: 'internal',
-    color: '#FF5733',
-    status: 'done',
-    priority: 'high',
-    dueDate: '2026-09-21',
-    description: 'Selesaikan masalah params Next 15',
-    assignees: ['Alex'],
-  },
-];
 
 export default function TasksPage() {
   const router = useRouter();
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const supabase = createClient();
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [loadingTasks, setLoadingTasks] = useState<boolean>(true);
 
   // State Filter & Search
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
@@ -79,6 +47,37 @@ export default function TasksPage() {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
+
+  // Fetch data task milik user yang sedang login dari Supabase
+  useEffect(() => {
+    async function fetchUserTasks() {
+      setLoadingTasks(true);
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          router.push('/login');
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('tasks')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Gagal mengambil task:', error.message);
+        } else if (data) {
+          setTasks(data as Task[]);
+        }
+      } catch (err) {
+        console.error('Terjadi kesalahan:', err);
+      } finally {
+        setLoadingTasks(false);
+      }
+    }
+
+    fetchUserTasks();
+  }, [supabase, router]);
 
   // Fetch hari libur nasional otomatis dengan fallback aman jika gagal fetch
   useEffect(() => {
@@ -153,6 +152,7 @@ export default function TasksPage() {
   const tasksByDate = useMemo(() => {
     const map: Record<string, Task[]> = {};
     tasks.forEach((t) => {
+      if (!t.dueDate) return;
       if (!map[t.dueDate]) map[t.dueDate] = [];
       map[t.dueDate].push(t);
     });
@@ -238,7 +238,8 @@ export default function TasksPage() {
     if (!confirmDelete) return;
 
     try {
-      await fetch(`/api/tasks/${id}`, { method: 'DELETE' }).catch(() => {});
+      const { error } = await supabase.from('tasks').delete().eq('id', id);
+      if (error) throw error;
       setTasks((prev) => prev.filter((t) => t.id !== id));
     } catch (error) {
       console.error(error);
@@ -259,10 +260,10 @@ export default function TasksPage() {
           <div className="space-y-1">
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-bold mb-1 border border-emerald-200">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-              Workspace Tugas Tim
+              Workspace Tugas Pribadi
             </div>
             <h2 className="text-2xl md:text-3xl font-black text-slate-900 tracking-tight">Task Management</h2>
-            <p className="text-xs md:text-sm text-slate-500">Kelola tugas harian, tinjau progres bulanan, dan filter prioritas tim Anda.</p>
+            <p className="text-xs md:text-sm text-slate-500">Kelola tugas harian, tinjau progres bulanan, dan filter prioritas akun Anda.</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -516,10 +517,15 @@ export default function TasksPage() {
                 )}
               </div>
 
-              {filteredTasks.length === 0 ? (
+              {loadingTasks ? (
+                <div className="p-12 text-center text-slate-400">
+                  <span className="material-symbols-outlined animate-spin text-3xl mb-2 text-[#006c4b]">progress_activity</span>
+                  <p className="text-xs font-medium">Memuat task Anda...</p>
+                </div>
+              ) : filteredTasks.length === 0 ? (
                 <div className="p-12 text-center text-slate-400">
                   <span className="material-symbols-outlined text-4xl mb-2 text-slate-300">task</span>
-                  <p className="text-xs font-medium">Tidak ada task yang cocok dengan kriteria filter atau tanggal tersebut.</p>
+                  <p className="text-xs font-medium">Belum ada task tersimpan atau tidak ada task yang cocok dengan filter.</p>
                 </div>
               ) : (
                 <div className="flex flex-col gap-3.5">
@@ -532,7 +538,7 @@ export default function TasksPage() {
                       <div className="flex items-start sm:items-center gap-3.5 overflow-hidden">
                         <div
                           className="w-2.5 h-12 rounded-full shrink-0 mt-0.5 sm:mt-0"
-                          style={{ backgroundColor: task.color }}
+                          style={{ backgroundColor: task.color || '#006c4b' }}
                         />
                         <div className="flex flex-col overflow-hidden space-y-1">
                           <span className="text-sm md:text-base font-bold text-slate-800 group-hover:text-[#006c4b] truncate transition-colors">
@@ -543,7 +549,7 @@ export default function TasksPage() {
                           )}
                           <div className="flex items-center gap-2 text-[11px] text-slate-400 flex-wrap pt-0.5">
                             <span className="bg-white px-2 py-0.5 rounded border border-slate-200 text-slate-600 font-semibold uppercase tracking-wider text-[10px]">
-                              {task.category}
+                              {task.category || 'general'}
                             </span>
                             <span>•</span>
                             <span className="flex items-center gap-1 font-medium">
